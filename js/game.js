@@ -15,9 +15,9 @@ function cornerUI(scene){ muteUI(scene,scene.scale.fullscreenAvailable?W-56:W-12
 const CALLOUTS={2:'NICE!',3:'GO BEYOND!',5:'UNSTOPPABLE!',8:'HERO MODE!',12:'LIMIT BREAK!!'};
 
 const DIFFS={
-  easy:  {name:'EASY',  col:'#3ddc84',speed:270,ramp:3,  maxSpeed:470,gap:[60,115], gapMul:1.25,crate:0.18,fire:0.6,pSpd:0.75,lives:5,wallSnap:Infinity,coyote:0.16,buffer:0.18},
-  medium:{name:'MEDIUM',col:'#ffd23f',speed:305,ramp:4.5,maxSpeed:560,gap:[80,145], gapMul:1.45,crate:0.30,fire:1,pSpd:1,lives:3,wallSnap:16,coyote:0.10,buffer:0.12},
-  hard:  {name:'HARD',  col:'#ff3d7f',speed:360,ramp:7.5,maxSpeed:700,gap:[110,190],gapMul:1.8, crate:0.48,fire:1.45,pSpd:1.3,lives:3,wallSnap:4, coyote:0.04,buffer:0.06},
+  easy:  {name:'EASY',  col:'#3ddc84',speed:270,ramp:3,  maxSpeed:520,gear:6, zb:[20,30],gap:[60,115], gapMul:1.25,crate:0.18,fire:0.6,pSpd:0.75,lives:5,wallSnap:Infinity,coyote:0.16,buffer:0.18},
+  medium:{name:'MEDIUM',col:'#ffd23f',speed:305,ramp:4.5,maxSpeed:640,gear:8, zb:[25,35],gap:[80,145], gapMul:1.45,crate:0.30,fire:1,pSpd:1,lives:3,wallSnap:16,coyote:0.10,buffer:0.12},
+  hard:  {name:'HARD',  col:'#ff3d7f',speed:360,ramp:7.5,maxSpeed:800,gear:10,zb:[30,45],gap:[110,190],gapMul:1.8, crate:0.48,fire:1.45,pSpd:1.3,lives:3,wallSnap:4, coyote:0.04,buffer:0.06},
 };
 const DIFF_KEYS=['easy','medium','hard'];
 function getDiff(){const d=Save.get('difficulty','medium');return DIFFS[d]?d:'medium'}
@@ -126,7 +126,7 @@ class GameScene extends Phaser.Scene{
     this.pow=1+Math.min(0.3,(lv-1)*0.02); // modest level boost
     this.diffKey=DIFFS[d.diff]?d.diff:getDiff(); this.D=DIFFS[this.diffKey];
     this.lives=this.D.lives; this.coyT=0; this.bufT=0; this.dist=0; this.bonus=0; this.combo=0; this.comboT=0; this.gems=0;
-    this.speed=this.D.speed; this.t=0; this.ts=1; this.state='run'; this.boostT=0; this.goGone=false;
+    this.speed=this.D.speed; this.rampSp=0; this.gear=0; this.zBoost=0; this.easeT=0; this.spdFx=0; this.t=0; this.ts=1; this.state='run'; this.boostT=0; this.goGone=false;
     this.R={time:0,enemies:0,gold:0,blue:0,maxCombo:0,topSpeed:0,zone:0}; // per-run stats (time = active run time, excludes slow-mo)
   }
   create(){
@@ -137,6 +137,7 @@ class GameScene extends Phaser.Scene{
     this.hud=this.add.text(14,10,'',st(20)); this.hud2=this.add.text(W-110,10,'',st(20)).setOrigin(1,0);
     this.call=this.add.text(W/2,150,'',st(56,'#fff35c')).setOrigin(0.5).setAlpha(0);
     this.mid=this.add.text(W/2,H/2,'',st(40)).setOrigin(0.5);
+    this.spdT=this.add.text(14,38,'',st(16,'#7af3ff')).setDepth(2);
     this.clouds=[...Array(Math.ceil(W/140)+1)].map((_,i)=>({x:i*140,y:40+Math.random()*200,r:30+Math.random()*40}));
     this.stars=[...Array(Q().stars)].map(()=>({x:Math.random()*W,y:Math.random()*H*0.6}));
     this.hx=W*0.25; this.resetWorld();
@@ -202,8 +203,9 @@ class GameScene extends Phaser.Scene{
     this.tweens.add({targets:this.call,alpha:0,delay:700,duration:400});}
   gen(){
     while(this.lastEnd<this.hx+W+600){
-      const D=this.D, sp=this.speed/D.speed, gap=Phaser.Math.Between(D.gap[0],D.gap[1])*Math.min(D.gapMul,sp);
-      const w=Phaser.Math.Between(320,720), y=Phaser.Math.Clamp(this.lastY+Phaser.Math.Between(-110,90),220,470);
+      const D=this.D, sp=this.speed/D.speed, w=Phaser.Math.Between(320,720), y=Phaser.Math.Clamp(this.lastY+Phaser.Math.Between(-110,90),220,470);
+      let gap=Phaser.Math.Between(D.gap[0],D.gap[1])*Math.min(D.gapMul,sp);
+      gap=Math.min(gap,this.reach(this.lastY-y)); // stay within single-jump reach at worst-case (eased) speed
       const x=this.lastEnd+gap; this.plats.push({x,y,w});
       // gems over gap
       for(let i=1;i<4;i++) this.gemsArr.push({x:x-gap+gap*i/4,y:Math.min(y,this.lastY)-60-Math.sin(i/4*Math.PI)*60,gold:Math.random()<0.04});
@@ -215,6 +217,19 @@ class GameScene extends Phaser.Scene{
       this.lastEnd=x+w; this.lastY=y;
     }
   }
+  // speed system: base + continuous ramp + gear steps (every 500m) + zone boosts, capped; eased after respawn
+  targetSpeed(){ const D=this.D; return Math.min(D.maxSpeed,D.speed+this.rampSp+this.gear*D.gear+this.zBoost); }
+  // horizontal distance covered by one jump (vy -760, g 2200) landing `rise` px higher, at 70% of current speed (respawn ease floor), 85% margin
+  reach(rise){ const v=760,g=2200, d=v*v-2*g*Math.max(rise,0); if(d<=0)return 60; const t=(v+Math.sqrt(d))/g; return Math.max(60,0.7*this.speed*t*0.85); }
+  speedStep(big){ if(big)this.time.delayedCall(900,()=>this.state==='run'&&this.callout('SPEED UP!!')); else this.callout('SPEED UP!'); this.spdFx=big?0.9:0.5; AUD.sfx('speedup'); this.shake(big?0.008:0.004,big?220:120); }
+  updSpeed(dt){ const D=this.D, g=Math.floor(this.dist/500);
+    this.rampSp+=D.ramp*dt;
+    if(g>this.gear){ this.gear=g; if(g*500!==1500&&g*500!==4000)this.speedStep(false); }
+    const zb=this.zone.zoneAt(this.dist)>=2?D.zb[0]+D.zb[1]:this.zone.zoneAt(this.dist)>=1?D.zb[0]:0;
+    if(zb>this.zBoost){ this.zBoost=zb; this.speedStep(true); }
+    const tgt=this.targetSpeed(); this.speed+= (tgt-this.speed)*Math.min(1,dt*6); if(Math.abs(tgt-this.speed)<0.5)this.speed=tgt;
+    this.easeT=Math.max(0,this.easeT-dt); }
+  curSpeed(){ return this.speed*(this.easeT>0?0.7+0.3*(1-this.easeT):1); }
   addEnemy(x,y){ const t=this.zone.zoneAt(this.dist+(x-this.hx)/10);
     const spr=this.add.sprite(0,0,'enemy_'+ESPR.KEYS[t],'idle0').setOrigin(0.5,1).setScale(ESPR.SCALE).setDepth(0.5);
     this.obs.push({x,y,w:40,h:56,type:t,spr,ph:Math.random()*6.28,cd:0.4+Math.random()*0.8,tel:0,n:0}); }
@@ -251,13 +266,13 @@ class GameScene extends Phaser.Scene{
     if(DEV.quality==='high'){this.fpsAcc+=deltaMs;this.fpsN++; if(this.fpsAcc>2000){const f=1000*this.fpsN/this.fpsAcc; this.fpsLow=f<45?this.fpsLow+1:0; if(this.fpsLow>=2){DEV.quality='low';} this.fpsAcc=0;this.fpsN=0;}}
     if(this.state==='slowmo'){ this.slowT+=realDt;
       if(this.slowT>1.6){ this.mid.setText(''); this.ts=1;
-        if(this.lives>0){ this.state='run'; this.speed=Math.max(this.D.speed,this.speed*0.85); this.spawnHero(); }
+        if(this.lives>0){ this.state='run'; this.easeT=1; this.spawnHero(); } // keep progress speed, 1s ease-in }
         else this.gameOver(); } }
     if(this.state==='over'){this.draw(0);return;}
     const dt=realDt*this.ts; this.t+=dt;
-    if(this.state==='run'){ this.speed=Math.min(this.D.maxSpeed,this.speed+this.D.ramp*dt); } // ramp
+    if(this.state==='run') this.updSpeed(dt);
     const dashing=this.dashT>0, boost=this.boostT>0?1.15:1;
-    const vx=this.speed*(dashing?1.7:1)*boost, dx=vx*dt;
+    const vx=this.curSpeed()*(dashing?1.7:1)*boost, dx=vx*dt;
     this.zone.update(this.state==='run'?dx:0,this.dist,this.t);
     if(this.state==='run'){ this.dist+=dx/10; const R=this.R; R.time+=realDt; R.topSpeed=Math.max(R.topSpeed,vx); R.zone=Math.max(R.zone,this.zone.cur);
       // scroll world
@@ -455,10 +470,12 @@ class GameScene extends Phaser.Scene{
     hs.setFrame(fr);
     if(this.heroId==='echo'){ this.echoSpr.setVisible(alive).setPosition(this.hx-55,this.hy-8+Math.sin(this.t*4)*8).setFrame(fr); }
     if(this.shield&&alive){ g.lineStyle(3,0x9fe8ff,0.8); g.strokeCircle(this.hx,this.hy-34,38); }
+    if(this.spdFx>0){ this.spdFx-=dt; fx.lineStyle(3,0xfff35c,Math.min(1,this.spdFx*2)); for(let i=0;i<Q().lines*2;i++){const y=Math.random()*H,x=Math.random()*W; fx.lineBetween(x,y,x+140+Math.random()*200,y);} }
     if(this.dashT>0){ fx.lineStyle(2,0xffffff,0.7); for(let i=0;i<Q().lines;i++){const y=Math.random()*H,x=Math.random()*W; fx.lineBetween(x,y,x+80+Math.random()*120,y);} }
     for(const p of this.parts){ fx.fillStyle(p.c,Math.max(0,p.life)); fx.fillCircle(p.x,p.y,p.r); }
     if(this.state==='slowmo'){ fx.fillStyle(0x000000,0.35); fx.fillRect(0,0,W,H); }
     this.hud.setText(`SCORE ${this.score()}   ${'★'.repeat(Math.max(0,this.lives))}${'☆'.repeat(this.D.lives-Math.max(0,this.lives))}   ${this.D.name}`);
+    this.spdT.setText(`SPD x${(this.curSpeed()/this.D.speed).toFixed(1)}  GEAR ${this.gear+1}`);
     this.hud2.setText(`${this.combo>1?'COMBO x'+this.combo+'   ':''}GEMS ${this.gems}   KO ${this.R.enemies}`);
   }
 }
