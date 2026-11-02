@@ -2,7 +2,7 @@
 const HEROES = [
   {id:'blaze',name:'Blaze Rush',power:'Fire dash: longer dash + flame trail',body:0xff5a2a,hair:0xffd23f,cape:0xb3122e},
   {id:'volt',name:'Volt Step',power:'Triple jump + speed boost on landing',body:0x2fb8ff,hair:0xfff35c,cape:0x1d3fd1},
-  {id:'feather',name:'Featherfall',power:'Hold jump to float down slowly',body:0xf4f0ff,hair:0x9be7c4,cape:0x7a5cff},
+  {id:'ichi',name:'Ichi',power:'Crimson Fang: long dash + crescent wave smashes crates ahead',body:0x111111,hair:0xff8a1a,cape:0xc4101c},
   {id:'iron',name:'Ironclad',power:'Shield survives one crash per life',body:0x8a94a6,hair:0x3b3f4a,cape:0xe0a526},
   {id:'echo',name:'Echo',power:'Shadow clone magnetizes nearby gems',body:0x6b3fa0,hair:0x1b1030,cape:0x2de2c8},
   {id:'prism',name:'Prism',power:'Dash makes a light bridge over gaps',body:0xff7ad9,hair:0x7af3ff,cape:0xfff27a},
@@ -11,6 +11,9 @@ const Save = {
   get(k,d){try{const v=localStorage.getItem('herodash.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
   set(k,v){try{localStorage.setItem('herodash.'+k,JSON.stringify(v))}catch(e){}},
 };
+// migrate Featherfall save slot -> Ichi
+(function(){try{const o=localStorage.getItem('herodash.hero.feather');if(o&&!localStorage.getItem('herodash.hero.ichi'))localStorage.setItem('herodash.hero.ichi',o);
+  if(localStorage.getItem('herodash.selected')==='"feather"')localStorage.setItem('herodash.selected','"ichi"');}catch(e){}})();
 const xpNeed = lvl => 30 + lvl*20;
 function heroProgress(id){ return Save.get('hero.'+id,{level:1,xp:0}); }
 function addXP(id,n){ const p=heroProgress(id); p.xp+=n; let ups=0;

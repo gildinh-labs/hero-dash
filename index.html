@@ -1,11 +1,19 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Hero Dash</title>
-<style>html,body{margin:0;height:100%;background:#120a2a;overflow:hidden;touch-action:none}#game{width:100vw;height:100vh}</style>
-</head><body><div id="game"></div>
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<style>html,body{margin:0;height:100%;background:#120a2a;overflow:hidden;touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#game{position:fixed;top:env(safe-area-inset-top);bottom:env(safe-area-inset-bottom);left:env(safe-area-inset-left);right:env(safe-area-inset-right)}
+#rotate{display:none;position:fixed;inset:0;z-index:9;background:#120a2aee;color:#fff;font:bold 22px Arial;align-items:center;justify-content:center;text-align:center;flex-direction:column}
+#rotate b{font-size:64px;animation:r 1.6s infinite}@keyframes r{50%{transform:rotate(90deg)}}
+@media (orientation:portrait) and (pointer:coarse){#rotate{display:flex}}</style>
+</head><body><div id="game"></div><div id="rotate"><b>📱</b>Rotate to landscape<br>to play HERO DASH</div>
 <script src="lib/phaser.min.js"></script>
 <script>window.Phaser||document.write('<script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"><\/script>')</script>
 <script src="js/heroes.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/zones.js"></script>
 <script src="js/game.js"></script>
 </body></html>
