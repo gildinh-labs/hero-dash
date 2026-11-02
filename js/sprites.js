@@ -87,3 +87,46 @@ function makeHeroTextures(scene){
     scene.anims.create({key:'run_'+hd.id,frames:['run0','run1','run2','run3'].map(f=>({key:'hero_'+hd.id,frame:f})),frameRate:12,repeat:-1});
   });
 }
+// ---- Procedural pixel-art ENEMIES (original designs). 20x24 frames: idle0, idle1, charge. type 0=earth grunt, 1=sky sentinel, 2=space drone ----
+const ESPR={W:20,H:24,SCALE:2.6,FR:['idle0','idle1','charge'],KEYS:['grunt','sentinel','drone']};
+function enemyGrid(type,fr){
+  const w=ESPR.W,h=ESPR.H,G=[...Array(h)].map(()=>Array(w).fill(null));
+  const px=(x,y,c)=>{x|=0;y|=0;if(x>=0&&y>=0&&x<w&&y<h)G[y][x]=c;};
+  const rect=(x,y,ww,hh,c)=>{for(let j=0;j<hh;j++)for(let i=0;i<ww;i++)px(x+i,y+j,c)};
+  const disc=(cx,cy,r,c)=>{for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++)if(x*x+y*y<=r*r+r*0.6)px(cx+x,cy+y,c)};
+  const f1=fr==='idle1', ch=fr==='charge';
+  if(type===0){ // EARTH: boxy ground grunt robot on treads, faces left
+    const b=f1?1:0;
+    rect(3,19,14,5,'#2b2b36'); for(let x=4;x<16;x+=3)rect(x+(f1?1:0),20,1,3,'#5a5a6e'); rect(3,19,14,1,'#44445a');
+    rect(4,8+b,12,11,'#6f8a4a'); rect(4,8+b,12,2,'#93b25f'); rect(14,10+b,2,9,'#4d6334');
+    rect(5,11+b,9,4,'#1b1030'); rect(6,12+b,3,2,ch?'#ffffff':'#ff3b3b'); rect(9,12+b,4,2,ch?'#ffe14a':'#a01a1a');
+    rect(6,16+b,7,1,'#3a4a26'); rect(1,12+b,3,4,'#8a8a9a'); rect(16,12+b,3,4,'#8a8a9a'); rect(0,15+b,2,2,'#5a5a6e');
+    rect(9,3+b,1,5,'#8a8a9a'); rect(8,2+b,3,2,(f1||ch)?'#ff3b3b':'#ffd23f');
+  } else if(type===1){ // SKY: winged orb sentinel turret with left cannon
+    const fl=f1?2:0;
+    for(let i=0;i<4;i++){rect(11+i,2+fl+i,2,6-i,'#ffffff');} rect(10,7,7,2,'#e6d6ff'); rect(13,1+fl,2,2,'#ffd6e0');
+    for(let i=0;i<3;i++)rect(14+i,8+fl/2+i,3,2,'#f0a8c0');
+    disc(10,13,6,'#c9cfe8'); disc(9,12,4,'#e8ecff'); rect(4,13,13,1,'#ff4fb0');
+    disc(9,12,2,'#1b1030'); rect(8,11,2,2,ch?'#ffffff':'#ff4fb0');
+    rect(0,14,5,3,'#6b6f88'); rect(0,15,5,1,'#4a4e66'); rect(0,14,1,3,ch?'#fff27a':'#2a1640');
+    rect(8,19,4,2,'#6b6f88'); rect(9,21,2,2+(f1?1:0),ch?'#fff27a':'#7af3ff');
+  } else { // SPACE: alien-piloted mech drone with glass dome + thruster legs
+    const b=f1?1:0;
+    disc(10,6+b,5,'#7a3fbf'); disc(9,5+b,3,'#a77dff'); px(8,4+b,'#e8d8ff');
+    rect(8,6+b,4,3,'#3ddc84'); rect(8,7+b,2,1,ch?'#ffffff':'#1b1030'); px(11,7+b,'#1b1030');
+    rect(2,10+b,16,6,'#4a4458'); rect(2,10+b,16,1,'#8a84a0'); rect(3,13+b,14,1,'#2b2638');
+    for(let x=4;x<17;x+=4)rect(x,11+b,2,1,ch?'#7af3ff':'#ff3d7f');
+    rect(0,11+b,3,3,'#6b6680'); rect(0,12+b,1,1,ch?'#fff27a':'#ff3d7f');
+    rect(4,16+b,2,4,'#6b6680'); rect(14,16+b,2,4,'#6b6680'); rect(9,16+b,2,3,'#6b6680');
+    rect(3,20,4,2,'#2b2638'); rect(13,20,4,2,'#2b2638'); rect(9,19+b,2,2,ch?'#ffffff':'#7af3ff'); rect(9,21+b,2,1+(f1?1:0),'#ff9a5c');
+  }
+  const O=G.map(r=>r.slice());
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(!G[y][x]&&[[1,0],[-1,0],[0,1],[0,-1]].some(([a,b])=>G[y+b]&&G[y+b][x+a]))O[y][x]='#1b1030';
+  return O;
+}
+function makeEnemyTextures(scene){
+  if(scene.textures.exists('enemy_grunt'))return;
+  ESPR.KEYS.forEach((k,t)=>{const n=ESPR.FR.length,c=scene.textures.createCanvas('enemy_'+k,ESPR.W*n,ESPR.H),ctx=c.getContext();
+    ESPR.FR.forEach((f,i)=>{enemyGrid(t,f).forEach((r,y)=>r.forEach((col,x)=>{if(col){ctx.fillStyle=col;ctx.fillRect(i*ESPR.W+x,y,1,1)}}));c.add(f,0,i*ESPR.W,0,ESPR.W,ESPR.H);});
+    c.refresh(); c.setFilter(Phaser.Textures.FilterMode.NEAREST);});
+}

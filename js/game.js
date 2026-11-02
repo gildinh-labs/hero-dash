@@ -15,9 +15,9 @@ function cornerUI(scene){ muteUI(scene,scene.scale.fullscreenAvailable?W-56:W-12
 const CALLOUTS={2:'NICE!',3:'GO BEYOND!',5:'UNSTOPPABLE!',8:'HERO MODE!',12:'LIMIT BREAK!!'};
 
 const DIFFS={
-  easy:  {name:'EASY',  col:'#3ddc84',speed:270,ramp:3,  maxSpeed:470,gap:[60,115], gapMul:1.25,crate:0.18,lives:5,wallSnap:Infinity,coyote:0.16,buffer:0.18},
-  medium:{name:'MEDIUM',col:'#ffd23f',speed:305,ramp:4.5,maxSpeed:560,gap:[80,145], gapMul:1.45,crate:0.30,lives:3,wallSnap:16,coyote:0.10,buffer:0.12},
-  hard:  {name:'HARD',  col:'#ff3d7f',speed:360,ramp:7.5,maxSpeed:700,gap:[110,190],gapMul:1.8, crate:0.48,lives:3,wallSnap:4, coyote:0.04,buffer:0.06},
+  easy:  {name:'EASY',  col:'#3ddc84',speed:270,ramp:3,  maxSpeed:470,gap:[60,115], gapMul:1.25,crate:0.18,fire:0.6,pSpd:0.75,lives:5,wallSnap:Infinity,coyote:0.16,buffer:0.18},
+  medium:{name:'MEDIUM',col:'#ffd23f',speed:305,ramp:4.5,maxSpeed:560,gap:[80,145], gapMul:1.45,crate:0.30,fire:1,pSpd:1,lives:3,wallSnap:16,coyote:0.10,buffer:0.12},
+  hard:  {name:'HARD',  col:'#ff3d7f',speed:360,ramp:7.5,maxSpeed:700,gap:[110,190],gapMul:1.8, crate:0.48,fire:1.45,pSpd:1.3,lives:3,wallSnap:4, coyote:0.04,buffer:0.06},
 };
 const DIFF_KEYS=['easy','medium','hard'];
 function getDiff(){const d=Save.get('difficulty','medium');return DIFFS[d]?d:'medium'}
@@ -40,31 +40,32 @@ class SplashScene extends Phaser.Scene{
     this.bg=this.add.graphics();
     this.lines=[...Array(DEV.quality==='low'?14:36)].map(()=>({x:Math.random()*W,y:Math.random()*H,l:60+Math.random()*200,v:600+Math.random()*900}));
     this.hills=[...Array(Math.ceil(W/110)+3)].map((_,i)=>({x:i*110,h:40+Math.random()*90}));
-    // hero lineup
-    this.heroes=HEROES.map((h,i)=>{const s=this.add.sprite(W/2+(i-2.5)*Math.min(140,W/7),H-58,'hero_'+h.id,'run0').setOrigin(0.5,1).setScale(3.4);
-      s.play({key:'run_'+h.id,startFrame:i%4}); return s;});
-    const ttl={fontFamily:'Impact,Arial Black,sans-serif',fontSize:118,fontStyle:'italic',color:'#fff'};
-    this.glow=this.add.text(W/2,168,'HERO DASH',{...ttl,color:'#ff3d7f',stroke:'#ff3d7f',strokeThickness:26}).setOrigin(0.5).setAlpha(0.45);
-    this.logo=this.add.text(W/2,168,'HERO DASH',{...ttl,stroke:'#1b1030',strokeThickness:14}).setOrigin(0.5);
+    // synthwave sun + twinkling stars fill the space the hero lineup used to occupy
+    this.sunY=H-58; this.stars=[...Array(DEV.quality==='low'?20:50)].map(()=>({x:Math.random()*W,y:Math.random()*H*0.55,p:Math.random()*6.28}));
+    const LY=Math.round(H*0.33), ttl={fontFamily:'Impact,Arial Black,sans-serif',fontSize:124,fontStyle:'italic',color:'#fff'};
+    this.glow=this.add.text(W/2,LY,'HERO DASH',{...ttl,color:'#ff3d7f',stroke:'#ff3d7f',strokeThickness:26}).setOrigin(0.5).setAlpha(0.45);
+    this.logo=this.add.text(W/2,LY,'HERO DASH',{...ttl,stroke:'#1b1030',strokeThickness:14}).setOrigin(0.5);
     const gr=this.logo.context.createLinearGradient(0,10,0,this.logo.height-10);
     gr.addColorStop(0,'#fff8b0');gr.addColorStop(0.45,'#ffd23f');gr.addColorStop(0.55,'#ff7a1a');gr.addColorStop(1,'#ff3d7f');
     this.logo.setFill(gr); this.logo.setShadow(6,6,'#1b1030',0,true,false);
-    this.add.text(W/2,252,'— ANIME HERO RUNNER —',{fontFamily:'Arial Black,Arial',fontSize:20,color:'#7af3ff',stroke:'#1b1030',strokeThickness:5}).setOrigin(0.5);
     this.tweens.add({targets:[this.logo,this.glow],scale:1.05,angle:-2,duration:900,yoyo:true,repeat:-1,ease:'Sine.inOut'});
     this.tweens.add({targets:this.glow,alpha:0.15,duration:700,yoyo:true,repeat:-1});
-    this.prompt=this.add.text(W/2,322,'TAP / PRESS START',{fontFamily:'Arial Black,Arial',fontSize:30,color:'#fff',stroke:'#ff3d7f',strokeThickness:6}).setOrigin(0.5);
+    this.prompt=this.add.text(W/2,LY+120,'TAP / PRESS START',{fontFamily:'Arial Black,Arial',fontSize:30,color:'#fff',stroke:'#ff3d7f',strokeThickness:6}).setOrigin(0.5);
     this.tweens.add({targets:this.prompt,alpha:0.25,scale:0.94,duration:650,yoyo:true,repeat:-1});
     cornerUI(this);
-    this.add.text(W/2,368,DEV.touch?'Tap left = JUMP  •  Tap right = DASH':'Z / ↑ / Space = JUMP  •  X / Shift = DASH',{fontFamily:'Arial',fontSize:15,color:'#fff'}).setOrigin(0.5).setAlpha(0.85);
-    this.add.text(W-14,H-12,'BEST '+Save.get('best',0),{fontFamily:'Arial Black,Arial',fontSize:14,color:'#fff8b0',stroke:'#1b1030',strokeThickness:4}).setOrigin(1);
+    this.add.text(W/2,LY+162,DEV.touch?'Tap left = JUMP  •  Tap right = DASH':'Z / ↑ / Space = JUMP  •  X / Shift = DASH',{fontFamily:'Arial',fontSize:15,color:'#fff'}).setOrigin(0.5).setAlpha(0.85);
+    const bs=Save.get('best',0); this.add.text(W/2,H-29,bs?'★ BEST '+bs+' ★':'★ NEW HERO — SET A RECORD! ★',{fontFamily:'Arial Black,Arial',fontSize:18,color:'#fff8b0',stroke:'#1b1030',strokeThickness:5}).setOrigin(0.5);
     const go=()=>{ if(this.going)return; this.going=true; this.cameras.main.flash(200,255,255,255); this.time.delayedCall(180,()=>this.scene.start('select')); };
     this.input.on('pointerdown',go); this.input.keyboard.on('keydown-ENTER',go); this.input.keyboard.on('keydown-SPACE',go);
   }
   update(t,d){ const g=this.bg,dt=d/1000; g.clear();
+    this.stars.forEach(s=>{g.fillStyle(0xffffff,0.35+0.35*Math.sin(t/400+s.p));g.fillRect(s.x,s.y,2,2);});
+    const sr=112,sx=W/2,sy=this.sunY, SC=[0xffe27a,0xffc45c,0xff9a4a,0xff6a5c,0xff4f7b];
+    for(let k=0;k<5;k++){const y0=sy-sr+k*sr/5; g.fillStyle(SC[k],0.92); for(let y=y0;y<y0+sr/5;y+=4){const hw=Math.sqrt(Math.max(0,sr*sr-(sy-y)**2)); g.fillRect(sx-hw,y,hw*2,4);} }
+    g.fillStyle(0x5a1d8c,1); for(let k=0;k<6;k++){const yy=sy-8-k*16-((t/70)%16), hw=Math.sqrt(Math.max(0,sr*sr-(sy-yy)**2)); g.fillRect(sx-hw,yy,hw*2,2+(5-k)*0.8);}
     g.fillStyle(0x2b0f4f,0.7); this.hills.forEach(h=>{h.x-=60*dt; if(h.x<-120)h.x+=this.hills.length*110; g.fillTriangle(h.x-80,H-50,h.x,H-50-h.h,h.x+80,H-50);});
     g.fillStyle(0x1b1030,1); g.fillRect(0,H-58,W,58); g.fillStyle(0x7af3ff,1); g.fillRect(0,H-58,W,5);
     this.lines.forEach(l=>{l.x-=l.v*dt; if(l.x+l.l<0){l.x=W+Math.random()*200;l.y=Math.random()*(H-80);} g.lineStyle(2,0xffffff,0.35); g.lineBetween(l.x,l.y,l.x+l.l,l.y);});
-    this.heroes.forEach((s,i)=>s.y=H-58-Math.abs(Math.sin(t/180+i))*4);
   }
 }
 
@@ -126,7 +127,7 @@ class GameScene extends Phaser.Scene{
     this.diffKey=DIFFS[d.diff]?d.diff:getDiff(); this.D=DIFFS[this.diffKey];
     this.lives=this.D.lives; this.coyT=0; this.bufT=0; this.dist=0; this.bonus=0; this.combo=0; this.comboT=0; this.gems=0;
     this.speed=this.D.speed; this.t=0; this.ts=1; this.state='run'; this.boostT=0; this.goGone=false;
-    this.R={time:0,crates:0,gold:0,blue:0,maxCombo:0,topSpeed:0,zone:0}; // per-run stats (time = active run time, excludes slow-mo)
+    this.R={time:0,enemies:0,gold:0,blue:0,maxCombo:0,topSpeed:0,zone:0}; // per-run stats (time = active run time, excludes slow-mo)
   }
   create(){
     skyImg(this);
@@ -149,10 +150,10 @@ class GameScene extends Phaser.Scene{
       if(over&&over.length)return; // tapped mute/fullscreen icon: don't jump/dash
       if(p.x<W/2){this.jump();p.isJump=true}else this.dash();
     });
-    makeHeroTextures(this);
+    makeHeroTextures(this); makeEnemyTextures(this);
     this.echoSpr=this.add.sprite(0,0,'hero_echo','run0').setOrigin(0.5,1).setScale(SPR.SCALE).setAlpha(0.35).setTint(0x8a4dff).setVisible(this.heroId==='echo');
     this.heroSpr=this.add.sprite(0,0,'hero_'+this.heroId,'run0').setOrigin(0.5,1).setScale(SPR.SCALE);
-    this.fx.setDepth(1); this.hud.setDepth(2); this.hud2.setDepth(2); this.call.setDepth(2); this.mid.setDepth(2);
+    this.fx.setDepth(1); this.heroSpr.setDepth(0.6); this.echoSpr.setDepth(0.55); this.hud.setDepth(2); this.hud2.setDepth(2); this.call.setDepth(2); this.mid.setDepth(2);
     if(DEV.touch){ const bs={fontFamily:'Arial Black,Arial',fontSize:22,color:'#fff',backgroundColor:'#ffffff22',padding:{x:22,y:16}};
       this.add.text(18,H-18,'⤒ JUMP',bs).setOrigin(0,1).setAlpha(0.55).setDepth(3);
       this.add.text(W-18,H-18,'DASH »',bs).setOrigin(1,1).setAlpha(0.55).setDepth(3); }
@@ -163,8 +164,8 @@ class GameScene extends Phaser.Scene{
     window.__hd=this;
   }
   resetWorld(){
-    this.plats=[{x:-200,y:400,w:1400}]; this.obs=[]; this.gemsArr=[]; this.parts=[]; this.trail=[];
-    this.bridges=[]; this.waves=[]; this.lastEnd=1200; this.lastY=400;
+    (this.obs||[]).forEach(o=>o.spr&&o.spr.destroy()); this.plats=[{x:-200,y:400,w:1400}]; this.obs=[]; this.shots=[]; this.gemsArr=[]; this.parts=[]; this.trail=[];
+    this.bridges=[]; this.waves=[]; this.booms=[]; this.lastEnd=1200; this.lastY=400;
     this.spawnHero();
   }
   spawnHero(){
@@ -174,7 +175,7 @@ class GameScene extends Phaser.Scene{
     const sx=this.hx-150, ex=this.hx+450;
     this.plats=this.plats.filter(p=>p.x+p.w<sx-40||p.x>ex+80);
     this.plats.push({x:sx,y:400,w:ex-sx,safe:true});
-    this.obs=this.obs.filter(o=>o.x>ex+80); this.gemsArr=this.gemsArr.filter(g=>g.x<sx||g.x>ex+80);
+    this.obs=this.obs.filter(o=>{const k=o.x>ex+80; if(!k&&o.spr)o.spr.destroy(); return k;}); this.shots=[]; this.obs.forEach(o=>{o.tel=0;o.cd=Math.max(o.cd,0.8);}); this.gemsArr=this.gemsArr.filter(g=>g.x<sx||g.x>ex+80);
     if(this.lastEnd<ex){this.lastEnd=ex;this.lastY=400;}
   }
   maxJumps(){return this.heroId==='volt'?3:2}
@@ -208,12 +209,35 @@ class GameScene extends Phaser.Scene{
       for(let i=1;i<4;i++) this.gemsArr.push({x:x-gap+gap*i/4,y:Math.min(y,this.lastY)-60-Math.sin(i/4*Math.PI)*60,gold:Math.random()<0.04});
       let ox=x+160;
       while(ox<x+w-120){ const r=Math.random();
-        if(r<this.D.crate) this.obs.push({x:ox,y:y,w:40,h:Phaser.Math.Between(50,80)});
+        if(r<this.D.crate) this.addEnemy(ox,y);
         else if(r<this.D.crate+0.4) for(let j=0;j<3;j++) this.gemsArr.push({x:ox+j*30,y:y-40,gold:Math.random()<0.04});
         ox+=Phaser.Math.Between(170,280); }
       this.lastEnd=x+w; this.lastY=y;
     }
   }
+  addEnemy(x,y){ const t=this.zone.zoneAt(this.dist+(x-this.hx)/10);
+    const spr=this.add.sprite(0,0,'enemy_'+ESPR.KEYS[t],'idle0').setOrigin(0.5,1).setScale(ESPR.SCALE).setDepth(0.5);
+    this.obs.push({x,y,w:40,h:56,type:t,spr,ph:Math.random()*6.28,cd:0.4+Math.random()*0.8,tel:0,n:0}); }
+  killEnemy(o,col){ o.dead=true; AUD.sfx('smash'); this.R.enemies++; o.spr&&o.spr.destroy(); o.spr=null;
+    const cx=o.x+20,cy=o.y-o.h/2; this.burst(cx,cy,col,26,380); this.burst(cx,cy,0xffffff,10,200);
+    this.booms.push({x:cx,y:cy,life:0.3}); }
+  // enemy attacks: sky = single slow straight shot; space = alternating 3-way spread / aimed shot. Telegraph TEL sec before firing.
+  enemyAI(dt){ const D=this.D, TEL=0.6, safe=this.hx+250;
+    for(const o of this.obs){ if(o.dead||o.type===0)continue;
+      const onScr=o.x<W-30, ahead=o.x>safe;
+      if(o.tel>0){ o.tel-=dt; if(!ahead){o.tel=0;continue;} if(o.tel<=0)this.fire(o); continue; }
+      if(!onScr||!ahead)continue; o.cd-=dt;
+      // only start telegraph if the shot will still leave from >=250px ahead of the hero
+      if(o.cd<=0&&o.x-this.speed*TEL>safe){ o.tel=TEL; AUD.sfx('charge'); }
+    } }
+  fire(o){ const D=this.D, mx=o.x+2, my=o.y-(o.type===1?27:34)+this.bob(o), sp=(o.type===1?150:200)*D.pSpd;
+    const S=(vx,vy,c)=>this.shots.push({x:mx,y:my,vx,vy,c,r:o.type===1?8:7});
+    if(o.type===1){ S(-sp,0,0xff4fb0); o.cd=2.8/D.fire; }
+    else { if(o.n++%2===0){ for(const a of [-0.26,0,0.26]) S(-Math.cos(a)*sp,Math.sin(a)*sp,0x7af3ff); }
+      else { const ddx=this.hx-mx, ddy=(this.hy-30)-my, d=Math.hypot(ddx,ddy)||1; S(ddx/d*sp*1.15,ddy/d*sp*1.15,0xfff27a); }
+      o.cd=2.1/D.fire; }
+    AUD.sfx('shoot'); }
+  bob(o){ return o.type===0?0:Math.sin(this.t*3+o.ph)*4; }
   crash(){
     if(this.invuln>0)return;
     if(this.shield){ this.shield=false; this.invuln=1; this.shake(0.012,250); this.callout('SHIELD!'); this.burst(this.hx,this.hy-30,0x9fe8ff,25); return 'saved'; }
@@ -237,9 +261,9 @@ class GameScene extends Phaser.Scene{
     this.zone.update(this.state==='run'?dx:0,this.dist,this.t);
     if(this.state==='run'){ this.dist+=dx/10; const R=this.R; R.time+=realDt; R.topSpeed=Math.max(R.topSpeed,vx); R.zone=Math.max(R.zone,this.zone.cur);
       // scroll world
-      for(const a of [this.plats,this.obs,this.gemsArr,this.bridges,this.waves,this.parts,this.trail]) for(const o of a) o.x-=dx;
+      for(const a of [this.plats,this.obs,this.shots,this.booms,this.gemsArr,this.bridges,this.waves,this.parts,this.trail]) for(const o of a) o.x-=dx;
       this.lastEnd-=dx; this.clouds.forEach(c=>{c.x-=dx*0.2;if(c.x<-100)c.x+=W+200});
-      this.plats=this.plats.filter(p=>p.x+p.w>-50); this.obs=this.obs.filter(o=>o.x>-80&&!o.dead);
+      this.plats=this.plats.filter(p=>p.x+p.w>-50); this.obs=this.obs.filter(o=>{const k=o.x>-80&&!o.dead; if(!k&&o.spr)o.spr.destroy(); return k;});
       this.gemsArr=this.gemsArr.filter(g=>g.x>-50&&!g.got); this.gen();
       // physics
       this.dashT-=dt; this.dashCd-=dt; this.invuln-=dt; this.boostT-=dt; this.comboT-=dt; if(this.comboT<0)this.combo=0;
@@ -262,17 +286,26 @@ class GameScene extends Phaser.Scene{
       if(this.hy>H+80) { this.invuln=0; this.shield=false; this.crash(); }
       // obstacles
       for(const o of this.obs){ if(this.hx+14>o.x&&this.hx-14<o.x+o.w&&this.hy>o.y-o.h&&this.hy-60<o.y){
-        if(dashing||this.crash()==='saved'){ o.dead=true; AUD.sfx('smash'); this.combo++; this.R.crates++; this.R.maxCombo=Math.max(this.R.maxCombo,this.combo); this.comboT=3; this.bonus+=50*this.combo;
-          this.burst(o.x+20,o.y-o.h/2,this.heroId==='blaze'?0xff7a1a:0xffd23f,26,380); this.shake(0.01,150);
+        if(dashing||this.crash()==='saved'){ this.killEnemy(o,this.heroId==='blaze'?0xff7a1a:0xffd23f); this.combo++; this.R.maxCombo=Math.max(this.R.maxCombo,this.combo); this.comboT=3; this.bonus+=50*this.combo;
+          this.shake(0.01,150);
           const c=CALLOUTS[this.combo]||(this.combo>12&&this.combo%5===0?'PLUS '+this.combo+'!':null); if(c)this.callout(c); }
         break; } }
+      // enemy attacks + projectiles
+      this.enemyAI(dt);
+      for(const p of this.shots){ p.x+=p.vx*dt; p.y+=p.vy*dt;
+        if(this.hx+14>p.x-p.r&&this.hx-14<p.x+p.r&&this.hy>p.y-p.r&&this.hy-60<p.y+p.r){
+          if(dashing){ p.dead=true; this.bonus+=10; AUD.sfx('zap'); this.burst(p.x,p.y,p.c,10,200); }
+          else if(this.invuln<=0){ p.dead=true; this.crash(); this.burst(p.x,p.y,p.c,10,200); } } }
+      this.shots=this.shots.filter(p=>!p.dead&&p.x>-30&&p.x<W+60&&p.y>-30&&p.y<H+30);
+      for(const b of this.booms)b.life-=dt; this.booms=this.booms.filter(b=>b.life>0);
       // gems
       const mag=(this.heroId==='echo'?170:30)*this.pow;
       for(const g of this.gemsArr){ const ddx=g.x-this.hx, ddy=g.y-(this.hy-30), d=Math.hypot(ddx,ddy);
         if(d<mag&&d>1){ g.x-=ddx/d*500*dt; g.y-=ddy/d*500*dt; }
         if(d<30){ g.got=true; AUD.sfx(g.gold?'gold':'gem'); this.gems+=g.gold?10:1; g.gold?this.R.gold++:this.R.blue++; this.burst(g.x,g.y,g.gold?0xffd700:0x7af3ff,8,150); } }
       for(const w of this.waves){ w.x+=700*dt; w.life-=dt;
-        for(const o of this.obs) if(!o.dead&&o.x<w.x+30&&o.x+o.w>w.x-30&&o.y-o.h<w.y+50&&o.y>w.y-50){ o.dead=true; AUD.sfx('smash'); this.bonus+=50; this.R.crates++; this.burst(o.x+20,o.y-o.h/2,0xc4101c,22,380); }
+        for(const o of this.obs) if(!o.dead&&o.x<w.x+30&&o.x+o.w>w.x-30&&o.y-o.h<w.y+50&&o.y>w.y-50){ this.killEnemy(o,0xc4101c); this.bonus+=50; }
+        for(const p of this.shots) if(!p.dead&&Math.abs(p.x-w.x)<40&&Math.abs(p.y-w.y)<55){ p.dead=true; this.burst(p.x,p.y,p.c,6,150); }
         if(DEV.quality!=='low'&&Math.random()<0.6) this.parts.push({x:w.x-10,y:w.y+Math.random()*60-30,vx:-120,vy:-60,life:0.4,c:Math.random()<0.5?0x111111:0xff2a2a,r:3+Math.random()*3}); }
       this.waves=this.waves.filter(w=>w.life>0&&w.x<W+80);
       this.bridges.forEach(b=>b.life-=dt); this.bridges=this.bridges.filter(b=>b.life>0);
@@ -287,9 +320,9 @@ class GameScene extends Phaser.Scene{
     this.state='over'; const s=this.score(), R=this.R, bk='best.'+this.diffKey, prev=Save.get(bk,0), best=Math.max(s,prev), isBest=s>prev&&s>0; Save.set(bk,best);
     Save.set('best',Math.max(s,Save.get('best',0)));
     const before=heroProgress(this.heroId), ups=addXP(this.heroId,this.gems), after=heroProgress(this.heroId);
-    const L=Save.get('life',{runs:0,time:0,gems:0}); L.runs++; L.time+=R.time; L.gems+=this.gems; Save.set('life',L);
+    const L=Save.get('life',{runs:0,time:0,gems:0}); if(L.crates!=null){L.enemies=(L.enemies||0)+L.crates;delete L.crates;} L.runs++; L.time+=R.time; L.gems+=this.gems; L.enemies=(L.enemies||0)+R.enemies; Save.set('life',L);
     AUD.stop(); AUD.sfx(ups?'levelup':'gameover');
-    window.__hdRun={score:s,best,isBest,time:R.time,dist:Math.floor(this.dist),zone:R.zone,gems:R.blue,gold:R.gold,crates:R.crates,maxCombo:R.maxCombo,wishes:this.D.lives-Math.max(0,this.lives),top:R.topSpeed,xp:this.gems,ups,life:L};
+    window.__hdRun={score:s,best,isBest,time:R.time,dist:Math.floor(this.dist),zone:R.zone,gems:R.blue,gold:R.gold,enemies:R.enemies,maxCombo:R.maxCombo,wishes:this.D.lives-Math.max(0,this.lives),top:R.topSpeed,xp:this.gems,ups,life:L};
     this.buildResults(window.__hdRun,before,after);
   }
   buildResults(r,before,after){
@@ -336,7 +369,7 @@ class GameScene extends Phaser.Scene{
     const nb=T(cx0+cw,top+30,'NEW BEST!',24,'#fff35c',{fontStyle:'italic',stroke:'#ff3d7f',strokeThickness:6}).setOrigin(1,0.5).setAngle(-8).setAlpha(0); C.add(nb);
     const Z=r.zone, rows=[
       ['TIME',mmss(r.time)],['DISTANCE',r.dist+' m'],['ZONE',ZONES[Z].name.replace(' ZONE!','').replace('!','')],['TOP SPEED',Math.round(r.top/10)+' m/s'],
-      ['GEMS',''+r.gems],['GOLD GEMS',''+r.gold],['CRATES',''+r.crates],['MAX COMBO','x'+r.maxCombo],['WISHES USED',r.wishes+' / '+D.lives]];
+      ['GEMS',''+r.gems],['GOLD GEMS',''+r.gold],['ENEMIES DEFEATED',''+r.enemies],['MAX COMBO','x'+r.maxCombo],['WISHES USED',r.wishes+' / '+D.lives]];
     const colW=cw/2, rh=38, sy=top+104;
     const rowsObjs=[];
     rows.forEach(([k,v],i)=>{const cX=cx0+(i%2)*colW, y=sy+Math.floor(i/2)*rh;
@@ -357,7 +390,7 @@ class GameScene extends Phaser.Scene{
     this.goSel=0; this.goFocus(0);
     const kb=DEV.touch?'Tap a button':'←/→ select • Enter pick • R retry • H hero • T title';
     C.add(T(px+pw/2-sk/2,btnY+28,kb,11,'#b8a8d8',{strokeThickness:2}).setOrigin(0.5,0));
-    const Lf=r.life; C.add(T(px+sk+4,py+ph-14,`LIFETIME  ${Lf.runs} runs  •  ${mmss(Lf.time)} played  •  ${Lf.gems} gems`,11,'#8f80b8',{strokeThickness:2}).setOrigin(0,1));
+    const Lf=r.life; C.add(T(px+sk+4,py+ph-14,`LIFETIME  ${Lf.runs} runs • ${mmss(Lf.time)} • ${Lf.gems} gems • ${Lf.enemies||0} KO`,11,'#8f80b8',{strokeThickness:2}).setOrigin(0,1));
     // --- animation sequence: slide in, count up, reveal stats, rank stamp, xp fill ---
     C.x=W; this.tweens.add({targets:C,x:0,duration:420,ease:'Back.out',delay:150});
     const cnt={v:0}; this.tweens.add({targets:cnt,v:r.score,delay:560,duration:Math.min(1600,400+r.score/4),ease:'Cubic.out',onUpdate:()=>scT.setText(''+Math.floor(cnt.v)),
@@ -400,8 +433,17 @@ class GameScene extends Phaser.Scene{
       else { g.fillStyle(0x2b2638,1); for(let x=p.x+14;x<p.x+p.w-20;x+=46) g.fillRect(x,p.y+14,10,8); g.fillStyle(0xff3d7f,1); for(let x=p.x+30;x<p.x+p.w-20;x+=92) g.fillRect(x,p.y+30,6,3);} }
     for(const b of this.bridges){ g.fillStyle(0xfff6ff,Math.min(1,b.life)); g.fillRect(b.x,b.y,b.w,6);
       g.fillStyle(0xff7ad9,0.4*Math.min(1,b.life)); g.fillRect(b.x,b.y-6,b.w,18); }
-    for(const o of this.obs){ g.fillStyle(0x9a3b2e,1); g.fillRect(o.x,o.y-o.h,o.w,o.h);
-      g.lineStyle(2,0x4a1610,1); g.strokeRect(o.x,o.y-o.h,o.w,o.h); g.lineBetween(o.x,o.y-o.h/2,o.x+o.w,o.y-o.h/2); }
+    const lo=DEV.quality==='low';
+    for(const o of this.obs){ if(!o.spr)continue; const by=this.bob(o);
+      o.spr.setPosition(o.x+20,o.y+2+by).setFrame(o.tel>0?(Math.floor(o.tel*16)%2?'charge':'idle0'):(Math.floor(this.t*3+o.ph)%2?'idle1':'idle0'));
+      if(o.type!==0&&!lo){ g.fillStyle(0x000000,0.25); g.fillEllipse(o.x+20,o.y+2,30-by,6); }
+      if(o.tel>0){ const k=1-o.tel/0.6, mx=o.x+2, my=o.y-(o.type===1?27:34)+by, c=o.type===1?0xff4fb0:(o.n%2===0?0x7af3ff:0xfff27a);
+        fx.fillStyle(c,0.35+0.4*k); fx.fillCircle(mx,my,4+k*10); fx.fillStyle(0xffffff,0.9); fx.fillCircle(mx,my,2+k*4);
+        fx.lineStyle(2,c,0.8*(1-k)); fx.strokeCircle(mx,my,26-k*20);
+        if(o.type===2&&o.n%2===1){ fx.lineStyle(1,0xfff27a,0.35*k); fx.lineBetween(mx,my,this.hx,this.hy-30); } } }
+    for(const p of this.shots){ if(!lo){ fx.fillStyle(p.c,0.3); fx.fillCircle(p.x,p.y,p.r+5); fx.fillStyle(p.c,0.25); fx.fillCircle(p.x-p.vx*0.04,p.y-p.vy*0.04,p.r); }
+      fx.fillStyle(p.c,1); fx.fillCircle(p.x,p.y,p.r); fx.fillStyle(0xffffff,1); fx.fillCircle(p.x,p.y,p.r*0.45); }
+    for(const b of this.booms){ const k=1-b.life/0.3; fx.lineStyle(4,0xffffff,1-k); fx.strokeCircle(b.x,b.y,10+k*45); fx.fillStyle(0xfff27a,0.6*(1-k)); fx.fillCircle(b.x,b.y,22*(1-k)+4); }
     for(const m of this.gemsArr){ const r=m.gold?11:8; g.fillStyle(m.gold?0xffd700:0x7af3ff,1);
       g.fillTriangle(m.x,m.y-r,m.x+r,m.y,m.x,m.y+r); g.fillTriangle(m.x,m.y-r,m.x-r,m.y,m.x,m.y+r); }
     for(const w of this.waves){ const a=Math.min(1,w.life*2); fx.lineStyle(14,0x111111,a); fx.beginPath(); fx.arc(w.x-30,w.y,52,-1.1,1.1); fx.strokePath();
@@ -417,7 +459,7 @@ class GameScene extends Phaser.Scene{
     for(const p of this.parts){ fx.fillStyle(p.c,Math.max(0,p.life)); fx.fillCircle(p.x,p.y,p.r); }
     if(this.state==='slowmo'){ fx.fillStyle(0x000000,0.35); fx.fillRect(0,0,W,H); }
     this.hud.setText(`SCORE ${this.score()}   ${'★'.repeat(Math.max(0,this.lives))}${'☆'.repeat(this.D.lives-Math.max(0,this.lives))}   ${this.D.name}`);
-    this.hud2.setText(`${this.combo>1?'COMBO x'+this.combo+'   ':''}GEMS ${this.gems}`);
+    this.hud2.setText(`${this.combo>1?'COMBO x'+this.combo+'   ':''}GEMS ${this.gems}   KO ${this.R.enemies}`);
   }
 }
 
